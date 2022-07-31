@@ -1,7 +1,7 @@
 [Desktop Entry]
 Comment[en_US]=unlock the encrypted user and open a konsole, lock and kill all user's processes when the konsole closes.
 Comment=unlock the encrypted user and open a konsole, lock and kill all user's processes when the konsole closes.
-Exec=/usr/bin/bash -i -c "/home/deck/steamdeck-nix-multiuser/scripts/fscrypt-user /usr/bin/konsole"
+Exec=/usr/bin/bash -c "env USE_ZENITY_LOGGING="yes" /home/deck/steamdeck-nix-multiuser/scripts/fscrypt-user /usr/bin/konsole"
 GenericName[en_US]=
 GenericName=
 Icon=rotation-locked-landscape-symbolic
@@ -10,7 +10,7 @@ Name[en_US]=fscrypt user konsole
 Name=fscrypt user konsole
 Path=
 StartupNotify=true
-Terminal=true
+Terminal=false
 TerminalOptions=
 Type=Application
 X-DBUS-ServiceName=

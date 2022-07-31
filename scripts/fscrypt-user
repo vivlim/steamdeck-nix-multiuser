@@ -5,9 +5,23 @@ FSCRYPTED_HOMEDIR=/home/$USER
 SCRIPTDIR=$(dirname $(realpath -- "$0";))
 PASSPHRASE_GETTER=$SCRIPTDIR/fscrypt-user-get-passphrase
 
+echo "$USE_ZENITY_LOGGING"
+if ! [ -z "$USE_ZENITY_LOGGING" ]; then
+  echo "using zenity logs"
+  logging_type="zenity"
+else
+  echo "using stdout logs"
+  logging_type="stdout"
+fi
+
+source "$SCRIPTDIR/utils.sh" steamdeck-nix-multiuser "steamdeck fscrypt user profile" "$logging_type"
+log_init
+log_init_progress
+
+log_progress_message "Initializing"
 if [ ! -e $PASSPHRASE_GETTER ]; then
-  echo "Passphrase getter script doesn't exist at $PASSPHRASE_GETTER. Please create it or copy fscrypt-user-get-passphrase.sample-interactive to that location"
-  sleep 5
+  log_message "Passphrase getter script doesn't exist at $PASSPHRASE_GETTER. Please create it or copy fscrypt-user-get-passphrase.sample-interactive to that location"
+  log_end_show_all
   exit 1
 fi
 
@@ -15,44 +29,48 @@ fi
 if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
   . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
 else
-  echo "couldn't source nix profile?"
-  sleep 5
+  log_message "couldn't source nix profile?"
+  log_end_show_all
   exit 1
 fi
 # End Nix
 
+log_progress
 #check if user is decrypted
 sudo fscrypt status $FSCRYPTED_HOMEDIR | awk '{if ($1 ~ /^Unlocked/) { if ($2 =="Yes") exit 0; else exit 1}}'
 if [ $? -eq 0 ]
 then
-  echo "$FSCRYPTED_HOMEDIR is already unlocked."
+  log_message "$FSCRYPTED_HOMEDIR is already unlocked."
   xauth list | grep unix`echo $DISPLAY | cut -c10-12` > /tmp/xauth
+  log_end
   sudo su $USER -l -c "xauth add `cat /tmp/xauth`; export DISPLAY=$DISPLAY;$@"
-  sleep 5
   exit 0
 
 else
-  echo "$FSCRYPTED_HOMEDIR is locked."
-  echo "calling $PASSPHRASE_GETTER to get passphrase"
+  log_progress_message "$FSCRYPTED_HOMEDIR is locked. calling $PASSPHRASE_GETTER to get passphrase."
   passphrase="$($PASSPHRASE_GETTER)"
   if [ $? -ne 0 ]
   then
-    echo "Passphrase not entered. Exiting.";
-    sleep 5
+    log_message "Passphrase not entered. Exiting.";
+    sleep 4
+    log_end
     exit 1
   fi
 
 sudo fscrypt unlock --quiet "$FSCRYPTED_HOMEDIR" <<< "$passphrase"
 if [ $? -eq 0 ]
   then
-    echo "Successfully unlocked $FSCRYPTED_HOMEDIR."
+    log_progress_message "Successfully unlocked $FSCRYPTED_HOMEDIR."
   else
-    echo "Failed to unlock $FSCRYPTED_HOMEDIR. Aborting."
+    log_message "Failed to unlock $FSCRYPTED_HOMEDIR. Aborting."
+    sleep 4
+    log_end
     exit 1
   fi
 fi
 
 xauth list | grep unix`echo $DISPLAY | cut -c10-12` > /tmp/xauth
+log_end
 (sudo su $USER -l -c "xauth add `cat /tmp/xauth`; DISPLAY=$DISPLAY $@") &
 
 nix-shell -p yad --run "$SCRIPTDIR/tray-icon $USER"
