@@ -33,9 +33,15 @@ fi
 if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
   . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
 else
-  log_message "couldn't source nix profile?"
+  log_message "couldn't source nix profile. attempting to run nixstrap. i haven't tested this to make sure it works!!!"
   log_end_show_all
-  exit 1
+  $("$SCRIPTDIR/nixstrap.sh")
+  if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+    show_critical_error "nix isn't available after running nixstrap"
+    exit 1
+  fi
+  $("$0 $@")
+  exit $?
 fi
 # End Nix
 
