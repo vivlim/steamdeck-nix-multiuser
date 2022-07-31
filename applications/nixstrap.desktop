@@ -1,0 +1,19 @@
+[Desktop Entry]
+Comment[en_US]=do a bunch of overlayfs shenanigans and start up nix
+Comment=do a bunch of overlayfs shenanigans and start up nix
+Exec=/home/deck/steamdeck-nix-multiuser/scripts/nixstrap
+GenericName[en_US]=
+GenericName=
+Icon=run-build-configure
+MimeType=
+Name[en_US]=nix bootstrap
+Name=nix bootstrap
+Path=
+StartupNotify=true
+Terminal=true
+TerminalOptions=
+Type=Application
+X-DBUS-ServiceName=
+X-DBUS-StartupType=
+X-KDE-SubstituteUID=false
+X-KDE-Username=

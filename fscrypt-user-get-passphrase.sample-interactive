@@ -1,0 +1,3 @@
+#!/bin/sh
+# interactive prompt using zenity.
+zenity --password --title "fscrypt user home"
