@@ -53,7 +53,9 @@ if [ $? -eq 0 ]
 fi
 
 xauth list | grep unix`echo $DISPLAY | cut -c10-12` > /tmp/xauth
-sudo su $USER -l -c "xauth add `cat /tmp/xauth`; DISPLAY=$DISPLAY $@"
+(sudo su $USER -l -c "xauth add `cat /tmp/xauth`; DISPLAY=$DISPLAY $@") &
+
+nix-shell -p yad --run "$SCRIPTDIR/tray-icon $USER"
 
 STOP_PROCESSES_ATTEMPT=1
 while [ "$(ps --no-headers -u $USER | wc -l)" -gt 0 ] && [ $STOP_PROCESSES_ATTEMPT -lt 10 ]

@@ -1,0 +1,41 @@
+#!/usr/bin/bash
+
+pipe=/tmp/steamdeck-nix-multiuser-fscrypt-home-tray
+
+# if inner, just show a prompt.
+if [[ $1 = "inner" ]]; then
+
+    if [[ ! -p $pipe ]]; then
+        echo "tray control pipe missing for some reason, this shouldn't happen"
+        exit 1
+    fi
+
+    exec 3>$pipe
+    # block the icon's click action so you can't open more of this window
+    echo "action:echo a" >&3
+
+    user_processes="$(ps --no-headers -u $2 | wc -l)"
+    ps -u $2 | yad --list --text="do you want to lock /home/$2 and stop $user_processes processes owned by $2?" --image="emblem-unlocked" --title="fscrypt user" --center --on-top --column=line --no-headers --no-selection
+    if [ $? -eq 0 ]; then
+        # tell the icon to exit
+        echo "quit" >&3
+    else
+        # restore the click action to the icon
+        echo "action:$0 $@" >&3
+    fi
+    exit 0
+fi
+
+if [[ $1 = "" ]]; then
+    echo "usage: $0 [username]"
+    exit 1;
+fi
+
+trap "rm -f $pipe" EXIT
+
+if [[ ! -p $pipe ]]; then
+    mkfifo $pipe
+fi
+
+exec 3<>$pipe
+yad --notification --image="emblem-unlocked" --listen --command="$0 inner $1" --text="eeasd" <&3
