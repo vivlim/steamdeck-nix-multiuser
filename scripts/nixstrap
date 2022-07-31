@@ -2,17 +2,36 @@
 # require sudo
 if [[ $UID != 0 ]]; then
 	echo "rerunning with sudo"
-	sudo "$0" "$@"
+	sudo -E "$0" "$@"
 	exit $?
 fi
 
+SCRIPTDIR=$(dirname $(realpath -- "$0";))
+echo "$USE_ZENITY_LOGGING"
+if ! [ -z "$USE_ZENITY_LOGGING" ]; then
+  echo "using zenity logs"
+  logging_type="zenity"
+else
+  echo "using stdout logs"
+  logging_type="stdout"
+fi
+
+source "$SCRIPTDIR/utils.sh" steamdeck-nix-multiuser "steamdeck nixstrap" "$logging_type"
+
+log_init
+if [ $? -ne 0 ]; then
+  show_critical_error "Another steamdeck-nix-multiuser operation is running. Please try again when it finishes."
+  exit 1
+fi
+log_init_progress
+
 if [ -d "/nix" ]; then
-	echo "/nix mount point already exists, this script already ran during this boot? exiting in 5s."
-	sleep 5
+	log_message "/nix mount point already exists, this script already ran during this boot?"
+	log_end_show_all
 	exit 0 # not really an error shrug
 fi
 
-echo "create a tmpfs that will contain a tiny overlayfs & backing dirs, the overlay will add the /nix mount point"
+log_progress_message "create a tmpfs that will contain a tiny overlayfs & backing dirs, the overlay will add the /nix mount point"
 mkdir /tmp/overlay-rootfs
 mount -t tmpfs -o size=1M tmpfs /tmp/overlay-rootfs
 mkdir -p /tmp/overlay-rootfs/real
@@ -21,25 +40,22 @@ mkdir -p /tmp/overlay-rootfs/overlay/oldroot_pivoted
 mkdir -p /tmp/overlay-rootfs/combined
 mount --make-private /tmp/overlay-rootfs
 
-echo "creating overlay rootfs in /tmp/overlay-rootfs/combined"
+log_progress_message "creating overlay rootfs in /tmp/overlay-rootfs/combined"
 mount --bind / /tmp/overlay-rootfs/real
 mount -t overlay overlay -o lowerdir=/tmp/overlay-rootfs/real:/tmp/overlay-rootfs/overlay /tmp/overlay-rootfs/combined
 
-echo "bind mount everything that's bound to / to also be mounted to /tmp/overlay-rootfs"
+log_progress_message "bind mount everything that's bound to / to also be mounted to /tmp/overlay-rootfs"
 mount | awk '{ if(length($3) > 1 && $3 !~ /^\/tmp\/overlay-rootfs/) print $3 }' | xargs -I "{}" mount --bind "{}" "/tmp/overlay-rootfs/combined{}"
 
-echo "pivot_root so that / moves to /tmp/overlay-rootfs/combined/oldroot_pivoted, and /tmp/overlay-rootfs/combined moves to /."
+log_progress_message "pivot_root so that / moves to /tmp/overlay-rootfs/combined/oldroot_pivoted, and /tmp/overlay-rootfs/combined moves to /."
 pivot_root /tmp/overlay-rootfs/combined /tmp/overlay-rootfs/combined/oldroot_pivoted/
 
-echo "creating overlayfs for /etc, backed by /home/deck/.overlay/etc_upper"
+log_progress_message "creating overlayfs for /etc, backed by /home/deck/.overlay/etc_upper"
 mount -t overlay overlay -o lowerdir=/etc,upperdir=/home/deck/.overlay/etc_upper,workdir=/home/deck/.overlay/etc_work /etc
-echo "creating overlayfs for /nix, backed by /home/deck/.nix"
+log_progress_message "creating overlayfs for /nix, backed by /home/deck/.nix"
 mount --bind /home/deck/.nix /nix
 
-echo "starting nix-daemon systemd service"
+log_progress_message "starting nix-daemon systemd service"
 systemctl start nix-daemon
 
-echo done. pausing so output can be read
-
-sleep 5
-
+log_end_show_all

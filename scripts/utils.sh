@@ -28,9 +28,8 @@ else
         # we don't really use the pipe in stdout mode... but creating and checking for it has the side benefit of
         # making any process that uses the same log name mutually exclusive
 
-        trap "rm -f $log_pipe $log_log" EXIT
-
         if [[ ! -p $log_pipe ]]; then
+            trap "rm -f $log_pipe $log_log" EXIT
             mkfifo $log_pipe
             exec 3<>$log_pipe
             if [[ "$log_mode" = "zenity" ]]; then
@@ -39,10 +38,9 @@ else
                 # update exit trap to also get rid of zenity if it's still around (someone forgot to call log_end*)
                 trap "rm -f $log_pipe $log_log; kill $! 2>/dev/null" EXIT
             fi
-            echo "this script: $0"
-            echo "caller $(caller)"
         else 
             show_critical_error "$log_pipe already exists. Is another process running? If there isn't, please remove the file and try again."
+            return 1
         fi
     }
 
@@ -134,6 +132,8 @@ else
             "stdout")
                 ;;
         esac
+        # delete the logs so another process can log
+        rm -f $log_pipe $log_log
     }
 
     log_end_show_all () {
@@ -141,12 +141,13 @@ else
             "zenity")
                 # send 100 percent to zenity and it'll close.
                 echo 100 >&3
-                zenity --text-info --filename="$log_log" --title="$log_title" --width=800 --height=500 --cancel-label="OK?" --ok-label="OK!" &
-                sleep 2 # wait for zenity to load, because if the script exits first, the file will be deleted before it can be read
+                zenity --text-info --filename="$log_log" --title="$log_title" --width=800 --height=500 --cancel-label="OK?" --ok-label="OK!"
                 ;;
 
             "stdout")
                 ;;
         esac
+        # delete the logs so another process can log
+        rm -f $log_pipe $log_log
     }
 fi

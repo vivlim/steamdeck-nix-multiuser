@@ -16,6 +16,10 @@ fi
 
 source "$SCRIPTDIR/utils.sh" steamdeck-nix-multiuser "steamdeck fscrypt user profile" "$logging_type"
 log_init
+if [ $? -ne 0 ]; then
+  show_critical_error "Another steamdeck-nix-multiuser operation is running. Please try again when it finishes."
+  exit 1
+fi
 log_init_progress
 
 log_progress_message "Initializing"

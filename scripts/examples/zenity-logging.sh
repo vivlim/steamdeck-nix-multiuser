@@ -3,6 +3,10 @@ SCRIPTDIR=$(dirname $(realpath -- "$0";))
 
 source "$SCRIPTDIR/../utils.sh" zenity-logging-sample "Zenity logging sample" zenity
 log_init
+if [ $? -ne 0 ]; then
+  show_critical_error "Another operation is running. Please try again when it finishes."
+  exit 1
+fi
 log_init_progress
 
 echo "found $log_progress_num_max lines containing log_progress, progress bar will complete after log_progress is called that many times"
