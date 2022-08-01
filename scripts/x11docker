@@ -23,7 +23,7 @@ if [[ "$image" = "-" ]]; then
 else
     docker pull "$image"
 fi
-nixGL x11docker "$image" --desktop --network --sudouser --clipboard --gpu --pulseaudio --dbus "$@"
+nixGL x11docker "$image" --desktop --network --sudouser --clipboard --gpu --pulseaudio=host --dbus "$@"
 
 sudo kill "$pid"
 
