@@ -5,16 +5,10 @@ FSCRYPTED_HOMEDIR=/home/$USER
 SCRIPTDIR=$(dirname $(realpath -- "$0";))
 PASSPHRASE_GETTER=$SCRIPTDIR/fscrypt-user-get-passphrase
 
-echo "$USE_ZENITY_LOGGING"
-if ! [ -z "$USE_ZENITY_LOGGING" ]; then
-  echo "using zenity logs"
-  logging_type="zenity"
-else
-  echo "using stdout logs"
-  logging_type="stdout"
-fi
+source "$SCRIPTDIR/utils.sh"
+logging_type="$(read_logging_type_from_env)"
 
-source "$SCRIPTDIR/utils.sh" steamdeck-nix-multiuser "steamdeck fscrypt user profile" "$logging_type"
+source "$SCRIPTDIR/logging.sh" steamdeck-nix-multiuser "steamdeck fscrypt user profile" "$logging_type"
 log_init
 if [ $? -ne 0 ]; then
   show_critical_error "Another steamdeck-nix-multiuser operation is running. Please try again when it finishes."

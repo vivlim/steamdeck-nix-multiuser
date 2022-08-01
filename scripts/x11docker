@@ -8,22 +8,34 @@ else
 fi
 shift
 
-sudo dockerd --data-root=./docker-store -G deck -p /tmp/xdockerd.pid &
-until [ -f /tmp/xdockerd.pid ]
-do
-    echo "waiting for dockerd pid file to exist"
-    sleep 0.1
-done
-pid=$(cat /tmp/xdockerd.pid)
-echo "dockerd pid is $pid"
+if [ -f /tmp/xdockerd.pid ]; then
+    echo "another docker daemon is running with pid $(cat /tmp/xdockerd.pid)"
+else
+    sudo dockerd --data-root=/home/deck/.docker-store -G deck -p /tmp/xdockerd.pid &
+    until [ -f /tmp/xdockerd.pid ]
+    do
+        echo "waiting for dockerd pid file to exist"
+        sleep 0.1
+    done
+    pid="$(cat /tmp/xdockerd.pid)"
+    echo "started dockerd with pid $pid"
+fi
 
 if [[ "$image" = "-" ]]; then
     image="local/stdin-image"
+    echo "using stdin dockerfile"
     cat | docker build - -t "$image"
 else
     docker pull "$image"
 fi
-nixGL x11docker "$image" --desktop --network --sudouser --clipboard --gpu --pulseaudio=host --dbus "$@"
+if [ $? -ne 0 ]; then
+    echo "there was a problem building or pulling the container image, aborting."
+    exit $?
+fi
 
-sudo kill "$pid"
+nixGL x11docker "$image" "$@"
+
+if [ -z "$pid" ]; then
+    sudo kill "$pid"
+fi
 

@@ -7,16 +7,10 @@ if [[ $UID != 0 ]]; then
 fi
 
 SCRIPTDIR=$(dirname $(realpath -- "$0";))
-echo "$USE_ZENITY_LOGGING"
-if ! [ -z "$USE_ZENITY_LOGGING" ]; then
-  echo "using zenity logs"
-  logging_type="zenity"
-else
-  echo "using stdout logs"
-  logging_type="stdout"
-fi
+source "$SCRIPTDIR/utils.sh"
+logging_type="$(read_logging_type_from_env)"
 
-source "$SCRIPTDIR/utils.sh" steamdeck-nix-multiuser "steamdeck nixstrap" "$logging_type"
+source "$SCRIPTDIR/logging.sh" steamdeck-nix-multiuser "steamdeck nixstrap" "$logging_type"
 
 log_init
 if [ $? -ne 0 ]; then

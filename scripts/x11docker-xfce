@@ -1,0 +1,39 @@
+#!/usr/bin/bash
+SCRIPTDIR=$(dirname $(realpath -- "$0";))
+source "$SCRIPTDIR/utils.sh"
+
+ARCHHOMEDIR="/home/deck/archxfcehome"
+
+# terrifying workaround: xfce refuses to start (just shows a white screen forever) if the use_compositing property is in xfwm4.xml.
+# remove the line from that file and don't worry too much about it
+xfwm4xmlpath="$ARCHHOMEDIR/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
+
+if [ -f "$xfwm4xmlpath" ]; then
+    sed -i '/<property name="use_compositing" type="bool" value="true"\/>/d' "$xfwm4xmlpath"
+fi
+
+"$SCRIPTDIR/x11docker" \
+- `# read dockerfile from stdin (it's written lower in this script)` \
+--desktop `# we want to run a desktop environment inside of a window` \
+--network `# allow container to access the network` \
+--sudouser `# allow user to become root using su, default password is x11docker` \
+--clipboard `# sync clipboard to and from the host` \
+--gpu `# enable gpu acceleration` \
+--webcam `# allow container to access the webcam` \
+--pulseaudio=host `# allow container to play audio` \
+--dbus `# support dbus` \
+--home="$ARCHHOMEDIR" `# create a persistent home directory across container runs` \
+--init=systemd `# xfce doesn't like restoring previous sessions unless systemd is around` \
+<< EOM
+# begin dockerfile
+FROM archlinux:latest
+
+# install x11docker dependencies
+RUN pacman -Syu --noconfirm; pacman -S --noconfirm xorg-server xorg-xinit xorg-xauth xclip xorg-xhost xorg-xrandr xorg-xdpyinfo weston xorg-server-xwayland xdotool xdg-utils pulseaudio systemd
+# install xfce group except for power manager
+RUN pacman -Sgq xfce4 | grep -v xfce4-power-manager | pacman -S --noconfirm -
+RUN pacman -Sy --noconfirm xfce4-goodies chromium firefox wget sudo
+
+CMD startxfce4
+# end of dockerfile
+EOM
