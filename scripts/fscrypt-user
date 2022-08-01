@@ -40,7 +40,7 @@ else
     show_critical_error "nix isn't available after running nixstrap"
     exit 1
   fi
-  $("$0 $@")
+  $0 $@
   exit $?
 fi
 # End Nix
@@ -53,7 +53,7 @@ then
   log_message "$FSCRYPTED_HOMEDIR is already unlocked."
   xauth list | grep unix`echo $DISPLAY | cut -c10-12` > /tmp/xauth
   log_end
-  sudo su $USER -l -c "xauth add `cat /tmp/xauth`; export DISPLAY=$DISPLAY;$@"
+  sudo -E su $USER -m -l -c "xauth add `cat /tmp/xauth`; export DISPLAY=$DISPLAY;$@"
   exit 0
 
 else

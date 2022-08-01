@@ -134,6 +134,8 @@ else
         esac
         # delete the logs so another process can log
         rm -f $log_pipe $log_log
+        unset log_progress_num_max
+        unset log_progress_num_current
     }
 
     log_end_show_all () {
@@ -149,5 +151,7 @@ else
         esac
         # delete the logs so another process can log
         rm -f $log_pipe $log_log
+        unset log_progress_num_max
+        unset log_progress_num_current
     }
 fi
