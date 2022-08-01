@@ -26,10 +26,16 @@ if [[ "$image" = "-" ]]; then
     echo "using stdin dockerfile"
     cat | docker build - -t "$image"
 else
+    echo "pulling $image"
     docker pull "$image"
 fi
 if [ $? -ne 0 ]; then
     echo "there was a problem building or pulling the container image, aborting."
+
+    if [ -z "$pid" ]; then
+        sudo kill "$pid"
+    fi
+    read
     exit $?
 fi
 
@@ -39,3 +45,4 @@ if [ -z "$pid" ]; then
     sudo kill "$pid"
 fi
 
+read

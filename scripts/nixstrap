@@ -53,3 +53,4 @@ log_progress_message "starting nix-daemon systemd service"
 systemctl start nix-daemon
 
 log_end_show_all
+systemctl restart sddm
