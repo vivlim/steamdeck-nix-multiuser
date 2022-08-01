@@ -1,0 +1,29 @@
+#! /usr/bin/env nix-shell
+#! nix-shell x11docker-deps.nix -i /usr/bin/bash
+
+if [ -z "$1" ]; then
+    image="x11docker/xfce"
+else
+    image="$1"
+fi
+shift
+
+sudo dockerd --data-root=./docker-store -G deck -p /tmp/xdockerd.pid &
+until [ -f /tmp/xdockerd.pid ]
+do
+    echo "waiting for dockerd pid file to exist"
+    sleep 0.1
+done
+pid=$(cat /tmp/xdockerd.pid)
+echo "dockerd pid is $pid"
+
+if [[ "$image" = "-" ]]; then
+    image="local/stdin-image"
+    cat | docker build - -t "$image"
+else
+    docker pull "$image"
+fi
+nixGL x11docker "$image" --desktop --network --sudouser --clipboard --gpu --pulseaudio --dbus "$@"
+
+sudo kill "$pid"
+
