@@ -23,7 +23,7 @@ fi
 --pulseaudio=host `# allow container to play audio` \
 --dbus `# support dbus` \
 --home="$ARCHHOMEDIR" `# create a persistent home directory across container runs` \
---init=systemd `# xfce doesn't like restoring previous sessions unless systemd is around` \
+--init=systemd `# this might not be necessary but maybe it'll reduce the chances of random things breaking. todo: see if it can be removed safely` \
 << EOM
 # begin dockerfile
 FROM archlinux:latest
