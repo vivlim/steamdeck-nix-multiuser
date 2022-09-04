@@ -7,12 +7,10 @@ pkgs.stdenv.mkDerivation {
 
   buildInputs =
   [
-    pkgs.x11docker
-    pkgs.tmux
-    pkgs.docker
-    pkgs.tini
-    pkgs.weston
-    pkgs.xwayland
+    pkgs.obs-studio
+    pkgs.vaapiVdpau
+    pkgs.gst_all_1.gst-vaapi
+    pkgs.libvdpau-va-gl
     nixGLPkgs.nixGLIntel
   ];
 }

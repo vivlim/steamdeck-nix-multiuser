@@ -39,7 +39,7 @@ if [ $? -ne 0 ]; then
     exit $?
 fi
 
-nixGL x11docker "$image" "$@"
+nixGLIntel x11docker "$image" "$@"
 
 if [ -z "$pid" ]; then
     sudo kill "$pid"
