@@ -1,0 +1,24 @@
+#!/bin/sh
+unset LD_PRELOAD
+TARGET_USER=vivlim
+
+export DISPLAY=:0
+
+
+if [[ -z "${DISPLAY}" ]]; then
+    export DISPLAY=:0
+fi
+
+if [ ! -e /home/deck/.Xauthority ]; then # if desktop hasn't been started, there's no xauthority
+    # make one
+    touch ~/.Xauthority
+    xauth generate $DISPLAY . trusted
+fi
+
+xauth list | grep unix`echo $DISPLAY | cut -c10-12` > /tmp/xauth
+
+sudo mkdir -p /tmp/nested-xdgruntime
+sudo chown $TARGET_USER /tmp/nested-xdgruntime
+sudo chmod 700 /tmp/nested-xdgruntime
+#sudo su $TARGET_USER -l -c "xauth add `cat /tmp/xauth`; XDG_RUNTIME_DIR=/tmp/nested-xdgruntime exec dbus-run-session startplasma-wayland --xwayland --x11-display $DISPLAY --no-lockscreen --width 1280 --height 800 -- plasma_session" &> /tmp/nestlog
+sudo su $TARGET_USER -l -c "xauth add `cat /tmp/xauth`; cat ~/.Xauthority; echo xauth above; XDG_RUNTIME_DIR=/tmp/nested-xdgruntime exec dbus-run-session startplasma-wayland --xwayland --x11-display $DISPLAY --no-lockscreen --width 1280 --height 800 -- plasma_session" &> /tmp/nestlog

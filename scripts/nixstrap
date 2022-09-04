@@ -44,8 +44,8 @@ mount | awk '{ if(length($3) > 1 && $3 !~ /^\/tmp\/overlay-rootfs/) print $3 }' 
 log_progress_message "pivot_root so that / moves to /tmp/overlay-rootfs/combined/oldroot_pivoted, and /tmp/overlay-rootfs/combined moves to /."
 pivot_root /tmp/overlay-rootfs/combined /tmp/overlay-rootfs/combined/oldroot_pivoted/
 
-log_progress_message "creating overlayfs for /etc, backed by /home/deck/.overlay/etc_upper"
-mount -t overlay overlay -o lowerdir=/etc,upperdir=/home/deck/.overlay/etc_upper,workdir=/home/deck/.overlay/etc_work /etc
+#log_progress_message "creating overlayfs for /etc, backed by /home/deck/.overlay/etc_upper"
+#mount -t overlay overlay -o lowerdir=/etc,upperdir=/home/deck/.overlay/etc_upper,workdir=/home/deck/.overlay/etc_work /etc
 log_progress_message "creating overlayfs for /nix, backed by /home/deck/.nix"
 mount --bind /home/deck/.nix /nix
 
@@ -53,3 +53,4 @@ log_progress_message "starting nix-daemon systemd service"
 systemctl start nix-daemon
 
 log_end_show_all
+systemctl restart sddm
