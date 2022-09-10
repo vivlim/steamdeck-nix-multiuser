@@ -6,12 +6,14 @@ SCRIPTDIR=$(dirname $(realpath -- "$0";))
 PASSPHRASE_GETTER=$SCRIPTDIR/fscrypt-user-get-passphrase
 
 run_target_process () {
-  if [[ "$UNLOCK_ONLY" -ne "yes" ]]; then
+  if [[ "$UNLOCK_ONLY" != "yes" ]]; then
+    echo "running '$@' as $USER"
     (sudo su $USER -l -c "xauth add `cat /tmp/xauth`; DISPLAY=$DISPLAY $@") &
 
     nix-shell -p yad --run "$SCRIPTDIR/tray-icon $USER"
   else
-    bash -c $@
+    echo "running '$@'"
+    bash -c "$@"
   fi
 }
 
