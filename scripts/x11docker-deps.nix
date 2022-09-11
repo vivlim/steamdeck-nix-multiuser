@@ -8,7 +8,7 @@ let
       containersConf = pkgs.writeText "containers.conf" ''
         [network]
         cni_plugin_dirs = [
-          "${pkgs.cni-plugins}/bin"
+          "${pkgs.cni-plugins}/bin" # use path in nix store for CNI plugins
         ]
       '';
 
@@ -21,7 +21,9 @@ let
       storageConf = pkgs.writeText "storage.conf" ''
         [storage]
         driver = "overlay"
+        # /run is too small on the steam deck! (~3GB)
         runroot = "/tmp/podman_run/containers/storage"
+        # /var is *way* too small on the steam deck! (~230MB)
         graphroot = "/home/deck/.podman-containers/storage"
       '';
     in pkgs.writeScript "podman-setup" ''
