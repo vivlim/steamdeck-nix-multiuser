@@ -14,8 +14,8 @@ HOMEDIR="/home/deck/fscrypted-home"
 --webcam `# allow container to access the webcam` \
 --pulseaudio=host `# allow container to play audio` \
 --dbus `# support dbus` \
---home=$HOMEDIR `# create a persistent home directory across container runs` \
 --cap-default \
 --backend=podman \
 --user=vivlim \
 $@"
+#--home=$HOMEDIR `# create a persistent home directory across container runs` \

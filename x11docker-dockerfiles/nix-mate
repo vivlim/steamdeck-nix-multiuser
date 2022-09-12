@@ -25,15 +25,17 @@ RUN mkdir -p /run/current-system/ && ln -s /nix/var/nix/profiles/default /run/cu
 RUN rm /usr/share && ln -s /nix/var/nix/profiles/default/share /usr/share
 #RUN nix-build '<nixpkgs>' -A makeDBusConf --arg suidHelper '${dbus}/libexec/daemon-launch-helper' --arg serviceDirectories '[ accountsservice ]' && cp result/* /etc/dbus-1/ && rm -rf result
 
-RUN nix-build -E 'with import <nixpkgs>{}; makeDBusConf { suidHelper = "${dbus}/libexec/daemon-launch-helper"; serviceDirectories = [ accountsservice];  }' && cp result/* /etc/dbus-1/ && rm -rf result
+RUN nix-build -E 'with import <nixpkgs>{}; makeDBusConf { suidHelper = "${dbus}/libexec/daemon-launch-helper"; serviceDirectories = [ dbus.out dconf accountsservice gnome.gnome-keyring ];  }' && cp result/* /etc/dbus-1/ && rm -rf result
 
 RUN dbus-uuidgen --ensure=/etc/machine-id
 
 # fix some permissions
 # setuid bit for sudo so we can use it
 RUN chmod u+s /root/.nix-profile/bin/sudo
-RUN chown vivlim /nix/var/nix/profiles/per-user
 
-#RUN nix-env -f '<nixpkgs>' -iA 
+RUN nix-env -f '<nixpkgs>' -iA dconf util-linux su xorg.xrdb gnome.gnome-keyring mate.marco gsettings-desktop-schemas
+RUN mkdir -p /sbin && ln -s /root/.nix-profile/bin/agetty /sbin/
+ENV MATE_SESSION_DEBUG=1
+ENV XDG_DATA_DIRS=/root/.nix-profile/share
 CMD ["mate-session"]
 
