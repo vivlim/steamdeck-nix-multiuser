@@ -1,0 +1,41 @@
+FROM nixos/nix
+
+ENV LANG en_US.UTF-8
+
+RUN nix-env -f '<nixpkgs>' -iA \
+  dbus procps psmisc \
+  xdg-utils xdg-user-dirs xdgmenumaker desktop-file-utils \
+  mesa mesa-demos xorg.libXv \
+  sudo gnused \
+  mate.mate-desktop mate.mate-session-manager
+
+RUN mkdir -p /var/lib/dbus
+RUN dbus-uuidgen --ensure
+
+RUN nix-env -f '<nixpkgs>' -iA \
+    mate.mate-utils mate.mate-tweak mate.mate-panel mate.mate-menus mate.mate-themes mate.mate-common mate.mate-terminal mate.mate-icon-theme mate.mate-user-guide mate.mate-control-center mate.mate-settings-daemon mate.mate-indicator-applet mate.mate-screensaver mate.mate-backgrounds mate.mate-notification-daemon
+
+RUN nix-env -f '<nixpkgs>' -iA accountsservice
+
+RUN rm -rf /etc/ssl && cp -av /root/.nix-profile/etc/* /etc/
+
+RUN mkdir /x11docker
+
+RUN mkdir -p /run/current-system/ && ln -s /nix/var/nix/profiles/default /run/current-system/sw
+RUN rm /usr/share && ln -s /nix/var/nix/profiles/default/share /usr/share
+#RUN nix-build '<nixpkgs>' -A makeDBusConf --arg suidHelper '${dbus}/libexec/daemon-launch-helper' --arg serviceDirectories '[ accountsservice ]' && cp result/* /etc/dbus-1/ && rm -rf result
+
+RUN nix-build -E 'with import <nixpkgs>{}; makeDBusConf { suidHelper = "${dbus}/libexec/daemon-launch-helper"; serviceDirectories = [ dbus.out dconf accountsservice gnome.gnome-keyring ];  }' && cp result/* /etc/dbus-1/ && rm -rf result
+
+RUN dbus-uuidgen --ensure=/etc/machine-id
+
+# fix some permissions
+# setuid bit for sudo so we can use it
+RUN chmod u+s /root/.nix-profile/bin/sudo
+
+RUN nix-env -f '<nixpkgs>' -iA dconf util-linux su xorg.xrdb gnome.gnome-keyring mate.marco gsettings-desktop-schemas
+RUN mkdir -p /sbin && ln -s /root/.nix-profile/bin/agetty /sbin/
+ENV MATE_SESSION_DEBUG=1
+ENV XDG_DATA_DIRS=/root/.nix-profile/share
+CMD ["mate-session"]
+

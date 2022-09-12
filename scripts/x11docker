@@ -4,14 +4,14 @@
 help()
 {
   echo "usage: x11docker [ -i | --image ] (image name)"
-  echo "                 [ -s | --stdin ] # build image based on stdin, overrides -i"
+  echo "                 [ -d | --dockerfile ] (dockerfile name) # build image based on dockerfile, overrides -i"
   echo "                 [ -p | --just-call-podman ] # just call podman instead of doing anything else, passes any args after --"
   echo "                 [ -n | --no-pull-or-build ] # don't try to build or pull the image, just hope it exists."
   exit 2
 }
 
-SHORT=i:,s,h,p,n
-LONG=image:,stdin,help,just-call-podman,no-pull-or-build
+SHORT=i:,d:,h,p,n
+LONG=image:,dockerfile:,help,just-call-podman,no-pull-or-build
 OPTS=$(getopt --alternative --name x11docker --options $SHORT --longoptions $LONG -- "$@")
 
 if [ $# -eq 0 ]; then
@@ -30,9 +30,9 @@ do
     -h | --help)
       help
       ;;
-    -s | --stdin)
-      USE_STDIN="yup"
-      shift;
+    -d | --dockerfile)
+      DOCKERFILE="$2"
+      shift 2
       ;;
     -p | --just-call-podman )
       JUST_CALL_PODMAN="mmhmm"
@@ -58,7 +58,7 @@ if [[ "$JUST_CALL_PODMAN" == "mmhmm" ]]; then
     exit $#
 fi
 
-if [ -z "$IMAGE" ] && [ -z "$USE_STDIN" ]; then
+if [ -z "$IMAGE" ] && [ -z "$DOCKERFILE" ]; then
     echo "No image specified. Perhaps try -i x11docker/xfce?"
     help
 fi
@@ -67,20 +67,22 @@ fi
 #exit 0
 
 if [ -z $NO_PULL_OR_BUILD ]; then
-    if [[ "$USE_STDIN" ]]; then
-        IMAGE="local/stdin-image"
-        echo "using stdin dockerfile"
-        cat | podman build - -t "$IMAGE"
-        IMAGE="localhost/$IMAGE" # podman prefixes with repository name, and in this case, that's localhost
+    if [[ "$DOCKERFILE" ]]; then
+        IMAGE="local/$(basename $DOCKERFILE)"
+        echo "using dockerfile $DOCKERFILE"
+        cat $DOCKERFILE | podman build - -t "$IMAGE"
     fi
     if [ $? -ne 0 ]; then
         echo "there was a problem building or pulling the container image, aborting."
         exit $?
     fi
 else
-    if [[ "$USE_STDIN" ]]; then
-        IMAGE="localhost/local/stdin-image"
+    if [[ "$DOCKERFILE" ]]; then
+        IMAGE="local/$(basename $DOCKERFILE)"
     fi
+fi
+if [[ "$DOCKERFILE" ]]; then
+    IMAGE="localhost/$IMAGE"
 fi
 
 # we have to pass --userns=host because podman in rootful mode refuses to run with --userns=keep-id!
