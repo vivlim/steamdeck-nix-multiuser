@@ -1,0 +1,169 @@
+#! /usr/bin/bash
+
+help()
+{
+  echo "usage: fscrypt-wrapper [ -t | --target ] (encrypted path) [ -c | --command ] (command to run)"
+  echo "             optional: [ -g | --guilogging ] # log using zenity dialogs"
+  echo "             optional: [ -e | --exclusive ] # don't run if the target is already unlocked"
+  echo " (note: i am pretty sure the following 2 cleanup options don't work if there are processes open, because they immediately kill find. that's the command that the fscrypt help text recommends but idk...)"
+  echo "             optional: [ -l | --lock-after ] # automatically lock after the command finishes, attempting to kill any processes that are using files inside target"
+  echo "             optional: [ -9 | --cleanup-with-sigkill ] # if automatic locking fails, try to kill the processes with SIGKILL"
+  exit 2
+}
+
+SHORT=t:,c:,h,g,e,l,9
+LONG=target:,command:,help,guilogging,exclusive,lock-after,cleanup-with-sigkill
+OPTS=$(getopt --alternative --name fscrypt-wrapper --options $SHORT --longoptions $LONG -- "$@")
+LOGGING_TYPE="stdout"
+
+if [ $# -eq 0 ]; then
+  help
+fi
+
+SCRIPTDIR=$(dirname $(realpath -- "$0";))
+PASSPHRASE_GETTER=$SCRIPTDIR/fscrypt-user-get-passphrase
+
+
+eval set -- "$OPTS"
+
+while :
+do
+  case "$1" in
+    -t | --target )
+      TARGET="$2"
+      shift 2
+      ;;
+    -c | --command )
+      COMMAND="$2"
+      shift 2
+      ;;
+    -h | --help)
+      help
+      ;;
+    -g | --guilogging)
+      LOGGING_TYPE="zenity"
+      shift;
+      ;;
+    -e | --exclusive)
+      EXCLUSIVE="yup"
+      shift;
+      ;;
+    -l | --lock-after)
+      LOCK_AFTER="yup"
+      shift;
+      ;;
+    -9 | --cleanup-with-sigkill)
+      CLEANUP_WITH_SIGKILL="yup"
+      shift;
+      ;;
+    --)
+      shift;
+      break
+      ;;
+    *)
+      echo "unknown option: $1"
+      help
+      ;;
+  esac
+done
+
+source "$SCRIPTDIR/utils.sh"
+
+source "$SCRIPTDIR/logging.sh" steamdeck-nix-multiuser-fscrypt-wrapper "steamdeck fscrypt wrapper" "$LOGGING_TYPE"
+log_init
+if [ $? -ne 0 ]; then
+  show_critical_error "Another steamdeck-nix-multiuser fscrypt-wrapper operation is running. Please try again when it finishes."
+  exit 1
+fi
+log_init_progress
+
+log_progress_message "Initializing"
+if [ ! -e $PASSPHRASE_GETTER ]; then
+  log_message "Passphrase getter script doesn't exist at $PASSPHRASE_GETTER. Please create it or copy fscrypt-user-get-passphrase.sample-interactive to that location"
+  log_end_show_all
+  exit 1
+fi
+
+# Nix
+if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+else
+  log_message "couldn't source nix profile. attempting to run nixstrap. i haven't tested this to make sure it works!!!"
+  log_end_show_all
+  $("$SCRIPTDIR/nixstrap.sh")
+  if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+    show_critical_error "nix isn't available after running nixstrap"
+    exit 1
+  fi
+  $0 $@
+  exit $?
+fi
+# End Nix
+
+log_progress
+#check if user is decrypted
+sudo fscrypt status $TARGET | awk '{if ($1 ~ /^Unlocked/) { if ($2 =="Yes") exit 0; else exit 1}}'
+if [ $? -eq 0 ]
+then
+  log_message "$TARGET is already unlocked."
+  if [[ "$EXCLUSIVE" == "yup" ]]; then
+    log_message "In exclusive mode, so not running command. Exiting."
+    sleep 4
+    log_end
+    exit 1
+  fi
+else
+  log_progress_message "$TARGET is locked. calling $PASSPHRASE_GETTER to get passphrase."
+  passphrase="$($PASSPHRASE_GETTER)"
+  if [ $? -ne 0 ]; then
+    log_message "Passphrase not entered. Exiting.";
+    sleep 4
+    log_end
+    exit 1
+  fi
+
+  sudo fscrypt unlock --quiet "$TARGET" <<< "$passphrase"
+  if [ $? -eq 0 ]; then
+    log_progress_message "Successfully unlocked $TARGET."
+  else
+    log_message "Failed to unlock $TARGET. Aborting."
+    sleep 4
+    log_end
+    exit 2
+  fi
+fi
+
+log_end
+
+bash -c "$COMMAND"
+
+if [[ "$LOCK_AFTER" == "yup" ]]; then
+  echo "Locking $TARGET."
+
+  sudo fscrypt lock $TARGET
+  if [ $? -ne 0 ]
+  then
+    echo "$TARGET didn't lock cleanly, attempting to kill leftover processes that are still using encrypted files."
+    sudo find "$TARGET" -print0 | sudo xargs -0 fuser -k -SIGTERM 2>/dev/null
+    sleep 1
+    echo "Attempt lock again."
+    sudo fscrypt lock $TARGET
+    if [ $? -ne 0 ]; then
+        if [[ "$CLEANUP_WITH_SIGKILL" == "yup" ]]; then
+          sudo find "$TARGET" -print0 | sudo xargs -0 fuser -k 2>/dev/null
+          sudo fscrypt lock $TARGET
+          if [ $? -ne 0 ]; then
+            show_critical_error "Locking $TARGET automatically failed, there are probably leftover processes. Please lock manually."
+            sleep 4
+            exit 1
+          else
+            exit 0
+          fi
+        fi
+
+        show_critical_error "Locking $TARGET automatically failed, there are probably leftover processes. Please lock manually."
+        sleep 4
+        exit 1
+    fi
+  fi
+fi

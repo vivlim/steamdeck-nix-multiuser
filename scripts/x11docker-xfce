@@ -13,7 +13,8 @@ if [ -f "$xfwm4xmlpath" ]; then
 fi
 
 "$SCRIPTDIR/x11docker" \
-- `# read dockerfile from stdin (it's written lower in this script)` \
+-s `# read dockerfile from stdin (it's written lower in this script)` \
+-- `# pass following args to x11docker` \
 --desktop `# we want to run a desktop environment inside of a window` \
 --network `# allow container to access the network` \
 --sudouser `# allow user to become root using su, default password is x11docker` \
@@ -24,25 +25,29 @@ fi
 --home="$ARCHHOMEDIR" `# create a persistent home directory across container runs` \
 --cap-default \
 --init=systemd `# this might not be necessary but maybe it'll reduce the chances of random things breaking. todo: see if it can be removed safely` \
+--backend=podman \
+$@ \
 << EOM
 # begin dockerfile
-FROM archlinux:latest
+FROM docker.io/archlinux:latest
 
 # install x11docker dependencies
 RUN pacman -Syu --noconfirm; pacman -S --noconfirm xorg-server xorg-xinit xorg-xauth xclip xorg-xhost xorg-xrandr xorg-xdpyinfo weston xorg-server-xwayland xdotool xdg-utils pulseaudio systemd
 
 # aur helper paru
-RUN pacman -S --noconfirm --needed base-devel git sudo rustup cargo && useradd -r -m docker_aur_builder
-RUN echo 'docker_aur_builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-USER docker_aur_builder
+#RUN pacman -S --noconfirm --needed base-devel git sudo rustup cargo && useradd -r -m docker_aur_builder
+#RUN echo 'docker_aur_builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+#USER docker_aur_builder
 
-RUN cd /tmp && rustup default stable && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm
+#RUN cd /tmp && rustup default stable && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm
 
-USER root
-RUN rm -rf /home/docker_aur_builder /tmp/paru
+#USER root
+#RUN rm -rf /home/docker_aur_builder /tmp/paru
 # install xfce group except for power manager
 RUN pacman -Sgq xfce4 | grep -v xfce4-power-manager | pacman -S --noconfirm -
 RUN pacman -Sy --noconfirm xfce4-goodies chromium firefox wget sudo
+
+RUN mkdir /x11docker
 
 CMD startxfce4
 # end of dockerfile

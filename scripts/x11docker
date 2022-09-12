@@ -1,48 +1,88 @@
 #! /usr/bin/env nix-shell
 #! nix-shell x11docker-deps.nix -i /usr/bin/bash
 
-if [ -z "$1" ]; then
-    image="x11docker/xfce"
-else
-    image="$1"
-fi
-shift
+help()
+{
+  echo "usage: x11docker [ -i | --image ] (image name)"
+  echo "                 [ -s | --stdin ] # build image based on stdin, overrides -i"
+  echo "                 [ -p | --just-call-podman ] # just call podman instead of doing anything else, passes any args after --"
+  echo "                 [ -n | --no-pull-or-build ] # don't try to build or pull the image, just hope it exists."
+  exit 2
+}
 
-if [ -f /tmp/xdockerd.pid ]; then
-    echo "another docker daemon is running with pid $(cat /tmp/xdockerd.pid)"
-else
-    sudo dockerd --data-root=/home/deck/.docker-store -G deck -p /tmp/xdockerd.pid &
-    until [ -f /tmp/xdockerd.pid ]
-    do
-        echo "waiting for dockerd pid file to exist"
-        sleep 0.1
-    done
-    pid="$(cat /tmp/xdockerd.pid)"
-    echo "started dockerd with pid $pid"
+SHORT=i:,s,h,p,n
+LONG=image:,stdin,help,just-call-podman,no-pull-or-build
+OPTS=$(getopt --alternative --name x11docker --options $SHORT --longoptions $LONG -- "$@")
+
+if [ $# -eq 0 ]; then
+  help
 fi
 
-if [[ "$image" = "-" ]]; then
-    image="local/stdin-image"
-    echo "using stdin dockerfile"
-    cat | docker build - -t "$image"
-else
-    echo "pulling $image"
-    docker pull "$image"
-fi
-if [ $? -ne 0 ]; then
-    echo "there was a problem building or pulling the container image, aborting."
+eval set -- "$OPTS"
 
-    if [ -z "$pid" ]; then
-        sudo kill "$pid"
+while :
+do
+  case "$1" in
+    -i | --image )
+      IMAGE="$2"
+      shift 2
+      ;;
+    -h | --help)
+      help
+      ;;
+    -s | --stdin)
+      USE_STDIN="yup"
+      shift;
+      ;;
+    -p | --just-call-podman )
+      JUST_CALL_PODMAN="mmhmm"
+      shift;
+      ;;
+    -n | --no-pull-or-build )
+      NO_PULL_OR_BUILD="yup"
+      shift;
+      ;;
+    --)
+      shift;
+      break
+      ;;
+    *)
+      echo "unknown option: $1"
+      help
+      ;;
+  esac
+done
+
+if [[ "$JUST_CALL_PODMAN" == "mmhmm" ]]; then
+    podman $@
+    exit $#
+fi
+
+if [ -z "$IMAGE" ] && [ -z "$USE_STDIN" ]; then
+    echo "No image specified. Perhaps try -i x11docker/xfce?"
+    help
+fi
+
+#buildah info
+#exit 0
+
+if [ -z $NO_PULL_OR_BUILD ]; then
+    if [[ "$USE_STDIN" ]]; then
+        IMAGE="local/stdin-image"
+        echo "using stdin dockerfile"
+        cat | podman build - -t "$IMAGE"
+        IMAGE="localhost/$IMAGE" # podman prefixes with repository name, and in this case, that's localhost
     fi
-    read
-    exit $?
+    if [ $? -ne 0 ]; then
+        echo "there was a problem building or pulling the container image, aborting."
+        exit $?
+    fi
+else
+    if [[ "$USE_STDIN" ]]; then
+        IMAGE="localhost/local/stdin-image"
+    fi
 fi
 
-nixGLIntel x11docker "$image" "$@"
-
-if [ -z "$pid" ]; then
-    sudo kill "$pid"
-fi
-
-read
+# we have to pass --userns=host because podman in rootful mode refuses to run with --userns=keep-id!
+# but x11docker assumes that --userns=keep-id is a valid option to pass to podman, even in rootful mode.
+nixGLIntel x11docker --backend=podman "$@" -- --userns=host -- "$IMAGE"
