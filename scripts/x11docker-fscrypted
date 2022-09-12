@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+SCRIPTDIR=$(dirname $(realpath -- "$0";))
+source "$SCRIPTDIR/utils.sh"
+
+HOMEDIR="/home/deck/fscrypted-home"
+
+"$SCRIPTDIR/fscrypt-wrapper" -t "$HOMEDIR" -l -9 -c "sudo $SCRIPTDIR/x11docker \
+-d $SCRIPTDIR/../x11docker-dockerfiles/nix-mate`# Dockerfile` \
+-- `# pass following args to x11docker` \
+--desktop `# we want to run a desktop environment inside of a window` \
+--network `# allow container to access the network` \
+--sudouser `# allow user to become root using su, default password is x11docker` \
+--gpu \
+--webcam `# allow container to access the webcam` \
+--pulseaudio=host `# allow container to play audio` \
+--dbus `# support dbus` \
+--home=$HOMEDIR `# create a persistent home directory across container runs` \
+--cap-default \
+--backend=podman \
+--user=vivlim \
+$@"
